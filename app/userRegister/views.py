@@ -18,8 +18,8 @@ class UserRegistration(Resource):
             email = request.json.get("email","NA")
             password = request.json.get("password","NA")
             print("This is line 16",email,password)
-            # role = request.json.get("role",False)
-            # is_verify = request.json.get("is_verify",False)
+            role = request.json.get("role","admin")
+            is_verify = False
 
 
             # Checking if email/password  is empty
@@ -37,7 +37,7 @@ class UserRegistration(Resource):
                 return make_response(jsonify({"message":"Invalid Email"}))
             ######################################
 
-            details_of_user = {"email": email, "password": password, "role": "admin", "is_verify": False}
+            details_of_user = {"email": email, "password": password, "role": role, "is_verify": is_verify}
 
             results = insert_user(details_of_user)
             print("This is of views results status: ",results)
@@ -90,6 +90,31 @@ class verifyEmail(Resource):
             return str(e)
 class Login(Resource):
     def post(self):
+        try:
+            email = request.json.get("email","NA")
+            password = request.json.get("password","NA")
+            if email in ["NA",""] or password in ["NA",""]:
+                return make_response(jsonify({"message":"Please Enter Correct Mail and password"}))
+            else:
+                user_details = {"email":email,"password":password}
+                find_user_details = find_user(user_details)
+                if find_user_details:
+
+                    expire_token_time = datetime.now() + timedelta(minutes=15)
+                    expire_epoch_time = int(expire_token_time.timestamp())
+
+                    details_and_role = {"email":email,}
+                    details_to_make_jwt_tokken = {"email": email, "exp": expire_epoch_time}
+
+                    veryfication_tokken = jwt.encode(details_to_make_jwt_tokken, "amit", algorithm="HS256")
+                else:
+                    return make_response(jsonify({"message": "Please Check your mail its and incorrect!"}))
+
+
+
+        except Exception as e:
+            return make_response(jsonify({"message":str(e)}))
+
 
 
 api.add_resource(UserRegistration, '/')
