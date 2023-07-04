@@ -1,13 +1,13 @@
 from flask import Flask, make_response,jsonify,request,Blueprint
 from flask_restful import Resource,Api
-from app.userRegister.controller import insert_user,find_user,find_email,update_is_verify
+from app.userRegister.controller import insert_user,find_user,find_email,update_is_verify,find_password,find_is_active,get_role,update_age,update_isverify
 from app.userRegister.verification import Verification,emailVerification
 from app import api
 from app import mail
 from flask_mail import Message
 import jwt
 from datetime import datetime,timedelta
-
+from flask_jwt_extended import create_access_token,create_refresh_token,get_jwt_identity,jwt_required
 
 example_blueprint = Blueprint("example_blueprint",__name__)
 
@@ -98,18 +98,25 @@ class Login(Resource):
             else:
                 user_details = {"email":email,"password":password}
                 find_user_details = find_user(user_details)
-                if find_user_details:
+                find_user_active =find_is_active(user_details)
+                if find_user_active:
+                    if find_user_details:
+                        find_pass=find_password(user_details)
+                        if find_pass:
+                            claims = {"role":get_role(user_details)}
+                            access_token = create_access_token(identity=email)
+                            refresh_token = create_refresh_token(identity=email)
+                            return make_response(jsonify({"acces-token":access_token,"refresh-tokn":refresh_token}))
 
-                    expire_token_time = datetime.now() + timedelta(minutes=15)
-                    expire_epoch_time = int(expire_token_time.timestamp())
+                        else:
+                            return make_response(jsonify({"message":"You have Entred Incorrect Password!"}))
 
-                    details_and_role = {"email":email,}
-                    details_to_make_jwt_tokken = {"email": email, "exp": expire_epoch_time}
 
-                    veryfication_tokken = jwt.encode(details_to_make_jwt_tokken, "amit", algorithm="HS256")
+
+                    else:
+                        return make_response(jsonify({"message": "Please Check your mail its and incorrect!"}))
                 else:
-                    return make_response(jsonify({"message": "Please Check your mail its and incorrect!"}))
-
+                    return make_response(jsonify({"message":"Please verify your account!!"}))
 
 
         except Exception as e:
@@ -117,6 +124,54 @@ class Login(Resource):
 
 
 
+class UpdateData(Resource):
+    @jwt_required()
+    def post(self):
+        email = get_jwt_identity()
+        user_role =get_role({"email":email})
+        find_mail =find_email({"email":email})
+        if user_role:
+            if find_mail:
+                field_to_update = request.json.get("age","NA")
+                if field_to_update in ["NA",""]:
+                    return make_response(jsonify({"message":"Enter value to update!"}))
+                else:
+                    obj_email = {"email":email}
+                    obj_to_update = {"age":field_to_update}
+                    result =update_age(obj_email,obj_to_update)
+                    if result:
+                        return make_response(jsonify({"message":"Field has been Updated!!"}))
+                    else:
+                        return make_response(jsonify({"message":"Field has been not updated "}))
+            else:
+                return make_response(jsonify({"message":"Your Email address is wrong"}))
+        else:
+            return make_response(jsonify({"message": "You are not allowed to update! Please update your pemissions"}))
+
+class DeleteUser(Resource):
+    @jwt_required()
+    def post(self):
+        email = get_jwt_identity()
+        user_role = get_role({"email": email})
+        find_mail = find_email({"email": email})
+        if user_role:
+            if find_mail:
+                obj_email = {"email": email}
+                obj_isverify = {"is_verify":False}
+                result = update_isverify(obj_email,obj_isverify)
+                if result:
+                    return make_response(jsonify({"message": "Users has been Deleted!!"}))
+                else:
+                    return make_response(jsonify({"message": "Users has been not updated "}))
+
+            else:
+                return make_response(jsonify({"message": "Your Email address is wrong"}))
+        else:
+            return make_response(jsonify({"message": "You are not allowed to update! Please update your pemissions"}))
+
+
 api.add_resource(UserRegistration, '/')
 api.add_resource(verifyEmail,'/verifyEmail')
-
+api.add_resource(Login,'/login')
+api.add_resource(UpdateData,'/update')
+api.add_resource(DeleteUser,'/delete')

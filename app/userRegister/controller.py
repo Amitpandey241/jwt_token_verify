@@ -26,7 +26,7 @@ def insert_user(user_detail):
 
 def find_user(user_details):
     try:
-        result = mongo.db.user.find_one(user_details)
+        result = mongo.db.users.find_one(user_details)
 
         if result:
             print("True of finduser2")
@@ -40,7 +40,7 @@ def find_user(user_details):
 
 def find_email(email_obj):
     try:
-        result = mongo.db.user.find_one(email_obj)
+        result = mongo.db.users.find_one(email_obj)
         print(result["email"],email_obj["email"])
         if result["email"] == email_obj["email"]:
             print("True of finduser2")
@@ -52,13 +52,13 @@ def find_email(email_obj):
         return str(e)
 
 #testing find_email
-# email= {"email":"Amit pandey"}
-# print(find_email(email))
+# email= {"email":"pamit1687@gmail.com"}
+# print(find_email({"email":"pamit1687@gmail.com"}))
 
 def update_is_verify(email_object):
     try:
         set_field ={"$set":{"is_verify":True}}
-        query_to_update_is_verify = mongo.db.user.update_one(email_object,set_field)
+        query_to_update_is_verify = mongo.db.users.update_one(email_object,set_field)
         print(query_to_update_is_verify,"dfasdjngs",query_to_update_is_verify.acknowledged)
         result = True if query_to_update_is_verify.acknowledged else False
         return result
@@ -68,9 +68,9 @@ def update_is_verify(email_object):
 # update_field = {"is_verify":True}
 # print(update_is_verify(email,update_field))
 
-def find_email_password(user_email_password):
+def find_password(user_email_password):
     try:
-        result = mongo.db.user.find_one(user_email_password)
+        result = mongo.db.users.find_one(user_email_password)
         print(result["email"],user_email_password["email"])
         if result["email"] == user_email_password["email"]:
             if result["password"] == user_email_password["password"]:
@@ -81,5 +81,64 @@ def find_email_password(user_email_password):
         else:
             print("True of finduser2")
             return False
+    except Exception as e:
+        return str(e)
+"""test data to test find_password"""
+# user_details = {"email" : "pamit1687@gmail.com","password" : "password"}
+# print(find_password(user_details))
+
+def find_is_active(user_email_password):
+    try:
+        result = mongo.db.users.find_one(user_email_password)
+        # print(result["email"],user_email_password["email"])
+        result_ = True if result["is_verify"] else False
+        return result_
+        # if result["is_verify"] :
+        #
+        #     return True
+        #
+        # else:
+        #
+        #     return False
+    except Exception as e:
+        return str(e)
+"""Testing this function """
+# user_details = {"username" : "Amit4444","password" : "password"}
+# print(find_is_active(user_details))
+
+def get_role(user_info):
+    try:
+        porjection = {"role":1,"_id":0}
+        result = mongo.db.users.find_one(user_info,porjection)
+        # print(result["email"],user_email_password["email"])
+
+        if result :
+            return result['role']
+
+        else:
+            return "Please check your role acces"
+    except Exception as e:
+        return str(e)
+
+# """Testing of get_role"""
+# user_info = {"email" : "pamit1687@gmail.com","password" : "password"}
+# print(get_role(user_info))
+
+def update_age(email_obj,age_obj):
+    try:
+        set_query = {"$set":age_obj}
+        query_to_update = mongo.db.users.update_one(email_obj,set_query)
+        result = True if query_to_update.acknowledged else False
+        return True
+    except Exception as e:
+        return str(e)
+
+
+def update_isverify(email_obj,obj_isverify):
+    try:
+        set_query = {"$set":obj_isverify}
+        query_to_update = mongo.db.users.update_one(email_obj,set_query)
+        result = True if query_to_update.acknowledged else False
+        return True
     except Exception as e:
         return str(e)
