@@ -1,5 +1,5 @@
 from app import mongo
-
+import bcrypt
 def insert_user(user_detail):
     try:
         """here query_to_insert_user_in_db.acknowledged gives
@@ -41,12 +41,12 @@ def find_user(user_details):
 def find_email(email_obj):
     try:
         result = mongo.db.users.find_one(email_obj)
-        print(result["email"],email_obj["email"])
+        # print(result["email"],email_obj["email"])
         if result["email"] == email_obj["email"]:
-            print("True of finduser2")
+            # print("True of finduser2")
             return True
         else:
-            print("True of finduser2")
+            # print("True of finduser2")
             return False
     except Exception as e:
         return str(e)
@@ -59,7 +59,7 @@ def update_is_verify(email_object):
     try:
         set_field ={"$set":{"is_verify":True}}
         query_to_update_is_verify = mongo.db.users.update_one(email_object,set_field)
-        print(query_to_update_is_verify,"dfasdjngs",query_to_update_is_verify.acknowledged)
+        # print(query_to_update_is_verify,"dfasdjngs",query_to_update_is_verify.acknowledged)
         result = True if query_to_update_is_verify.acknowledged else False
         return result
     except Exception as e:
@@ -68,12 +68,13 @@ def update_is_verify(email_object):
 # update_field = {"is_verify":True}
 # print(update_is_verify(email,update_field))
 
-def find_password(user_email_password):
+def find_password(user_email,user_password):
     try:
-        result = mongo.db.users.find_one(user_email_password)
-        print(result["email"],user_email_password["email"])
-        if result["email"] == user_email_password["email"]:
-            if result["password"] == user_email_password["password"]:
+        result = mongo.db.users.find_one(user_email)
+        print(result["email"],user_email["email"])
+        if result["email"] == user_email["email"]:
+            # if result["password"] == user_email_password["password"]:
+            if bcrypt.checkpw(user_password["password"],result["password"]):
                 return True
             else:
                 return False
@@ -124,16 +125,18 @@ def get_role(user_info):
 # user_info = {"email" : "pamit1687@gmail.com","password" : "password"}
 # print(get_role(user_info))
 
-def update_age(email_obj,age_obj):
+def update_password(email_obj,password_obj):
     try:
-        set_query = {"$set":age_obj}
+        set_query = {"$set":password_obj}
         query_to_update = mongo.db.users.update_one(email_obj,set_query)
         result = True if query_to_update.acknowledged else False
-        return True
+        return result
     except Exception as e:
         return str(e)
-
-
+"""test this input """
+# obj_email = {"email":"pamit1687@gmal.com", "password":"newpassword"}
+# obj_to_update = {"password":"newpassword1"}
+# print(update_password(obj_email,obj_to_update))
 def update_isverify(email_obj,obj_isverify):
     try:
         set_query = {"$set":obj_isverify}
@@ -142,3 +145,9 @@ def update_isverify(email_obj,obj_isverify):
         return True
     except Exception as e:
         return str(e)
+
+def get_pasword_bcrypt(email):
+    query_to_find_userobj = mongo.db.users.find_one(email)
+    return query_to_find_userobj['password']
+
+print(get_pasword_bcrypt(({"email":"pamit1687@gmail.com"})))

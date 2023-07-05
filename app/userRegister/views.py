@@ -1,6 +1,6 @@
 from flask import Flask, make_response,jsonify,request,Blueprint
 from flask_restful import Resource,Api
-from app.userRegister.controller import insert_user,find_user,find_email,update_is_verify,find_password,find_is_active,get_role,update_age,update_isverify
+from app.userRegister.controller import insert_user,find_user,find_email,update_is_verify,find_password,find_is_active,get_role,update_password,update_isverify,get_pasword_bcrypt
 from app.userRegister.verification import Verification,emailVerification
 from app import api
 from app import mail
@@ -8,6 +8,8 @@ from flask_mail import Message
 import jwt
 from datetime import datetime,timedelta
 from flask_jwt_extended import create_access_token,create_refresh_token,get_jwt_identity,jwt_required
+import bcrypt
+
 
 example_blueprint = Blueprint("example_blueprint",__name__)
 
@@ -16,18 +18,17 @@ class UserRegistration(Resource):
     def post(self):
         try:
             email = request.json.get("email","NA")
-            password = request.json.get("password","NA")
+            password = request.json.get("password","NA").encode('ASCII')
             print("This is line 16",email,password)
             role = request.json.get("role","admin")
             is_verify = False
+            encode_password = bcrypt.hashpw(password, bcrypt.gensalt())
 
 
             # Checking if email/password  is empty
             verify_obj = Verification()
             result = verify_obj.verify_email_password(email,password)
             if result != "Valid email password":
-
-
                 return make_response(jsonify({"message":result}))
 
             #checking if emailid entred is correct
@@ -54,9 +55,11 @@ class UserRegistration(Resource):
                 msg = Message('Testing', sender='ap7788546@gmail.com', recipients=[email])
                 print("line2")
                 msg.body = f"This is your verification Token: {veryfication_tokken}"
-                print("line3")
+                print("line 3")
+                msg.html =f"<h1><a href='http://127.0.0.1:5000/v1/api/verifyEmail?token={veryfication_tokken}'>Click on link to verify</a></h1>"
+                print("line 4")
                 mail.send(msg)
-                print("line4")
+                print("line 5")
                 return make_response(jsonify({"message":"please check your mail for verification tokken"}))
             return make_response(jsonify({"message":"Partial"}))
             ######################################
@@ -65,10 +68,11 @@ class UserRegistration(Resource):
 
 class verifyEmail(Resource):
 
-    def post(self):
+    def get(self):
         try:
             # token = request.json.get('token')
-            token = request.headers.get('token')
+            token = request.args.get('token')
+
             if token in ["NA",""]:
                 return make_response(jsonify({"message":"Yon have not entred your token"}))
             # veryfication_tokken = jwt.encode(details_to_make_jwt_tokken,"amit",algorithm="HS256")
@@ -92,21 +96,25 @@ class Login(Resource):
     def post(self):
         try:
             email = request.json.get("email","NA")
-            password = request.json.get("password","NA")
+            password = request.json.get("password","NA").encode()
+
+
             if email in ["NA",""] or password in ["NA",""]:
                 return make_response(jsonify({"message":"Please Enter Correct Mail and password"}))
             else:
-                user_details = {"email":email,"password":password}
+                user_details = {"email":email}
                 find_user_details = find_user(user_details)
                 find_user_active =find_is_active(user_details)
                 if find_user_active:
                     if find_user_details:
-                        find_pass=find_password(user_details)
+                        password_obj ={"password":password}
+                        find_pass=find_password(user_details,password_obj)
+                        print("this is find_pass",find_pass)
                         if find_pass:
                             claims = {"role":get_role(user_details)}
                             access_token = create_access_token(identity=email)
                             refresh_token = create_refresh_token(identity=email)
-                            return make_response(jsonify({"acces-token":access_token,"refresh-tokn":refresh_token}))
+                            return make_response(jsonify({"acces-token":access_token,"refresh-token":refresh_token}))
 
                         else:
                             return make_response(jsonify({"message":"You have Entred Incorrect Password!"}))
@@ -117,8 +125,6 @@ class Login(Resource):
                         return make_response(jsonify({"message": "Please Check your mail its and incorrect!"}))
                 else:
                     return make_response(jsonify({"message":"Please verify your account!!"}))
-
-
         except Exception as e:
             return make_response(jsonify({"message":str(e)}))
 
@@ -132,17 +138,26 @@ class UpdateData(Resource):
         find_mail =find_email({"email":email})
         if user_role:
             if find_mail:
-                field_to_update = request.json.get("age","NA")
-                if field_to_update in ["NA",""]:
+
+                # field_to_update = request.json.get("age","NA")
+                current_password = request.json.get("current_password","NA").encode()
+                new_password = request.json.get("new_password","NA").encode()
+                user_email = {"email":email}
+                user_password = {"password":current_password}
+                password_result = find_password(user_email,user_password)
+                if new_password in ["NA",""]:
                     return make_response(jsonify({"message":"Enter value to update!"}))
                 else:
-                    obj_email = {"email":email}
-                    obj_to_update = {"age":field_to_update}
-                    result =update_age(obj_email,obj_to_update)
-                    if result:
-                        return make_response(jsonify({"message":"Field has been Updated!!"}))
+                    if password_result:
+                        obj_email = {"email":email}
+                        obj_to_update = {"password":new_password}
+                        result =update_password(obj_email,obj_to_update)
+                        if result:
+                            return make_response(jsonify({"message":"Field has been Updated!!"}))
+                        else:
+                            return make_response(jsonify({"message":"Field has been not updated "}))
                     else:
-                        return make_response(jsonify({"message":"Field has been not updated "}))
+                        return make_response(jsonify({"message":"Incorrect current passsword!"}))
             else:
                 return make_response(jsonify({"message":"Your Email address is wrong"}))
         else:
@@ -170,8 +185,8 @@ class DeleteUser(Resource):
             return make_response(jsonify({"message": "You are not allowed to update! Please update your pemissions"}))
 
 
-api.add_resource(UserRegistration, '/')
-api.add_resource(verifyEmail,'/verifyEmail')
-api.add_resource(Login,'/login')
-api.add_resource(UpdateData,'/update')
-api.add_resource(DeleteUser,'/delete')
+api.add_resource(UserRegistration, '/v1/api/register')
+api.add_resource(verifyEmail,'/v1/api/verifyEmail')
+api.add_resource(Login,'/v1/api/login')
+api.add_resource(UpdateData,'/v1/api/update')
+api.add_resource(DeleteUser,'/v1/api/delete')
